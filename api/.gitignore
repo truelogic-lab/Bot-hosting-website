@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vercel / Deploy
+.vercel
+
+# Temp files
+.DS_Store
+tmp/
+temp/
+*.tmp
