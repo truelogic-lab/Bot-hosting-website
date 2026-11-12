@@ -24,7 +24,7 @@ const DeployBot = () => {
     api.getDashboard().then(setDashboardData).catch(() => {});
   }, []);
 
-  // Poll for pairing code once a deploy is pending
+  // Poll for pairing code once bot is deployed
   useEffect(() => {
     if (!pendingBot) return;
     let cancelled = false;
@@ -38,16 +38,15 @@ const DeployBot = () => {
 
         if (current.pairingCode) {
           setPairingCode(current.pairingCode);
-          clearInterval(interval);
+          setIsLoading(false);
         }
         if (current.status === 'online') {
-          // Paired! Redirect to bots list
           navigate('/dashboard/bots');
         }
         if (current.lastError) {
           setError(current.lastError);
           setPendingBot(null);
-          clearInterval(interval);
+          setIsLoading(false);
         }
       } catch (e) {
         console.error(e);
@@ -83,7 +82,7 @@ const DeployBot = () => {
     try {
       const { bot } = await api.deployBot(botName, fullPhone);
       setPendingBot(bot);
-      // Don't stop loading — pairing code hasn't arrived yet
+      // Keep loading — waiting for pairing code from your bot
     } catch (err) {
       setError(err.message);
       setIsLoading(false);
