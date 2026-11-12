@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // On mount, verify if a token exists and is valid
   useEffect(() => {
     (async () => {
       const token = localStorage.getItem(TOKEN_KEY);
@@ -19,7 +20,8 @@ export function AuthProvider({ children }) {
       try {
         const data = await api.me();
         setUser(data.user);
-      } catch {
+      } catch (err) {
+        // Token expired or invalid
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
       } finally {
