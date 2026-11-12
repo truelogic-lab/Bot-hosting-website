@@ -16,7 +16,7 @@ const Header = () => {
 
   return (
     <header className="w-full font-sans relative z-50 bg-white">
-      {/* Top Mini Bar - Hidden on mobile */}
+      {/* Top Mini Bar */}
       <div className="bg-white border-b border-gray-100 text-xs text-graytext py-2 hidden md:block">
         <div className="container mx-auto px-4 lg:px-8 flex justify-between items-center">
           <div>
@@ -37,15 +37,17 @@ const Header = () => {
       <div className="shadow-sm py-3 md:py-4">
         <div className="container mx-auto px-4 lg:px-8 flex justify-between items-center">
           
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-brand flex items-center justify-center text-white font-bold text-lg md:text-xl">
-              W
-            </div>
+          {/* Logo — uses your actual logo.jpg */}
+          <a href="/" className="flex items-center gap-2 shrink-0">
+            <img 
+              src="/logo.jpg" 
+              alt="Warren-XMD" 
+              className="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover border border-gray-100"
+            />
             <span className="text-xl md:text-2xl font-bold text-darktext tracking-tight">
               warren<span className="text-brand font-medium">site</span>
             </span>
-          </div>
+          </a>
 
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
@@ -57,7 +59,7 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Desktop CTA Button */}
+          {/* Desktop CTA */}
           <div className="hidden lg:block">
             <button className="bg-brand hover:bg-brand-dark text-white text-sm font-semibold px-6 py-2.5 rounded-full transition-all duration-300 shadow-md hover:shadow-lg">
               Free Trial

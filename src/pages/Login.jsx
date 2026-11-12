@@ -37,7 +37,7 @@ const Login = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <Link to="/" className="flex justify-center items-center gap-2 mb-6">
-          <div className="w-10 h-10 rounded-full bg-brand flex items-center justify-center text-white font-bold text-xl">W</div>
+          <img src="/logo.jpg" alt="Warren-XMD" className="w-10 h-10 rounded-full object-cover" />
           <span className="text-2xl font-bold text-darktext">warren<span className="text-brand">site</span></span>
         </Link>
         <h2 className="text-center text-3xl font-extrabold text-darktext">Welcome back</h2>

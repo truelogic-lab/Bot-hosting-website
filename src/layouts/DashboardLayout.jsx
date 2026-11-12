@@ -85,7 +85,7 @@ const DashboardLayout = ({ children }) => {
       <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-40 transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="h-16 flex items-center px-6 border-b border-gray-100">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded bg-brand flex items-center justify-center text-white font-bold text-sm">W</div>
+            <img src="/logo.jpg" alt="Warren-XMD" className="w-7 h-7 rounded object-cover" />
             <span className="text-lg font-bold text-darktext tracking-tight">Warren<span className="text-brand">XMD</span></span>
           </Link>
         </div>

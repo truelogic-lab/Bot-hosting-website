@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../lib/db.js';
+import { loginLimiter, signupLimiter, passwordResetLimiter } from '../lib/rateLimit.js';
 
 const router = express.Router();
 
@@ -12,9 +13,10 @@ const signToken = (user) =>
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 
-router.post('/register', async (req, res) => {
+// POST /api/auth/register
+router.post('/register', signupLimiter, async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, planId = 'starter' } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required.' });
@@ -24,6 +26,13 @@ router.post('/register', async (req, res) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+
+    // Validate plan exists
+    const planCheck = await pool.query('SELECT id, name, price_kes, daily_tokens, bot_limit FROM plans WHERE id = $1', [planId]);
+    if (planCheck.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid plan selected.' });
+    }
+    const plan = planCheck.rows[0];
 
     const existing = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
     if (existing.rows.length > 0) {
@@ -36,6 +45,7 @@ router.post('/register', async (req, res) => {
     try {
       await client.query('BEGIN');
 
+      // 1. Create user
       const userResult = await client.query(
         `INSERT INTO users (email, password_hash, full_name)
          VALUES ($1, $2, $3)
@@ -44,6 +54,14 @@ router.post('/register', async (req, res) => {
       );
       const user = userResult.rows[0];
 
+      // 2. Create subscription for the chosen plan
+      await client.query(
+        `INSERT INTO subscriptions (user_id, plan_id, status, current_period_end)
+         VALUES ($1, $2, 'active', NOW() + INTERVAL '30 days')`,
+        [user.id, planId]
+      );
+
+      // 3. Grant 1,000 signup bonus tokens
       await client.query(
         `INSERT INTO token_ledger (user_id, amount, kind, metadata)
          VALUES ($1, $2, 'signup_bonus', $3)`,
@@ -52,12 +70,12 @@ router.post('/register', async (req, res) => {
 
       await client.query('COMMIT');
 
-      // Non-critical: welcome notification (wrapped so a missing table doesn't break signup)
+      // Non-critical: welcome notification
       try {
         await pool.query(
           `INSERT INTO notifications (user_id, type, title, body, link)
-           VALUES ($1, 'success', 'Welcome to Warren-XMD!', 'Your account has been created. You have 1,000 starter tokens to test deployments.', '/dashboard/deploy')`,
-          [user.id]
+           VALUES ($1, 'success', 'Welcome to Warren-XMD!', 'Your account is ready. You have 1,000 starter tokens and a free trial on the ' || $2 || ' plan.', '/dashboard/deploy')`,
+          [user.id, plan.name]
         );
       } catch (notifErr) {
         console.warn('⚠️ Could not create welcome notification:', notifErr.message);
@@ -66,9 +84,7 @@ router.post('/register', async (req, res) => {
       // Refresh balances view
       try {
         await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY user_token_balances');
-      } catch (e) {
-        // Non-critical
-      }
+      } catch {}
 
       const token = signToken(user);
 
@@ -80,6 +96,7 @@ router.post('/register', async (req, res) => {
           email: user.email,
           role: user.role,
         },
+        plan: { id: plan.id, name: plan.name },
       });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -93,7 +110,8 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+// POST /api/auth/login
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -139,6 +157,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// GET /api/auth/me
 router.get('/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;

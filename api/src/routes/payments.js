@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import { pool } from '../lib/db.js';
+import { paymentLimiter } from '../lib/rateLimit.js';
 
 const router = express.Router();
 
@@ -38,7 +39,7 @@ async function getMpesaToken() {
 }
 
 // POST /api/payments/stkpush
-router.post('/stkpush', requireAuth, async (req, res) => {
+router.post('/stkpush', requireAuth, paymentLimiter, async (req, res) => {
   const { phone, amountKes } = req.body;
 
   if (!phone || !amountKes) {

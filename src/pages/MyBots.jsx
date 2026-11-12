@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Plus, Search, MoreVertical, Play, Pause, Trash2, Cpu, ServerOff, Zap, Loader2 } from 'lucide-react';
+import { Layers, Plus, Search, MoreVertical, Play, Pause, Trash2, Cpu, ServerOff, Zap, Loader2, AlertCircle } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { api } from '../utils/api';
 
@@ -16,7 +16,6 @@ const MyBots = () => {
     (async () => {
       try {
         setLoading(true);
-        // Fetch both bots and dashboard summary (for the daily limit)
         const [botsRes, dashRes] = await Promise.all([
           api.getBots(),
           api.getDashboard()
@@ -61,6 +60,9 @@ const MyBots = () => {
 
   const activeCount = bots.filter(b => b.status === 'online').length;
   const dailyLimit = dashboardData?.plan?.daily_tokens;
+  const botLimit = dashboardData?.plan?.bot_limit;
+  const botsUsed = bots.length;
+  const botLimitReached = botLimit !== undefined && botsUsed >= botLimit;
 
   return (
     <DashboardLayout>
@@ -71,8 +73,13 @@ const MyBots = () => {
             <h1 className="text-xl md:text-2xl font-bold text-darktext">My Bots</h1>
             <p className="text-sm text-gray-500 mt-1">Manage and monitor your deployed WhatsApp instances.</p>
           </div>
-          <Link to="/dashboard/deploy" className="flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark text-white font-bold text-sm px-4 py-2.5 rounded-lg shadow-sm transition-all">
-            <Plus size={16} strokeWidth={1.5} /> Deploy New Bot
+          <Link to="/dashboard/deploy" className={`flex items-center justify-center gap-2 font-bold text-sm px-4 py-2.5 rounded-lg shadow-sm transition-all ${
+            botLimitReached 
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed pointer-events-none' 
+              : 'bg-brand hover:bg-brand-dark text-white'
+          }`}>
+            <Plus size={16} strokeWidth={1.5} /> 
+            {botLimitReached ? 'Bot Limit Reached' : 'Deploy New Bot'}
           </Link>
         </div>
 
@@ -82,13 +89,26 @@ const MyBots = () => {
           </div>
         )}
 
+        {/* Plan limit alert */}
+        {botLimitReached && (
+          <div className="flex items-start gap-3 border-l-2 border-amber-500 pl-4 py-1">
+            <AlertCircle size={18} className="text-amber-500 shrink-0 mt-0.5" strokeWidth={1.5}/>
+            <div>
+              <p className="text-xs font-bold text-amber-900">Bot limit reached</p>
+              <p className="text-[11px] text-amber-800/80 mt-0.5">
+                Your plan allows {botLimit} bot{botLimit > 1 ? 's' : ''}. <Link to="/dashboard/buy" className="font-bold underline">Upgrade your plan</Link> to deploy more.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4 py-6 border-y border-gray-200 bg-white px-4 md:px-6 rounded-xl shadow-sm">
           <div className="flex flex-col">
             <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Total Bots</span>
             <div className="flex items-center gap-2.5">
               <Layers size={20} className="text-darktext" strokeWidth={1.5} />
-              <span className="text-2xl font-extrabold text-darktext">{bots.length}</span>
+              <span className="text-2xl font-extrabold text-darktext">{botsUsed} <span className="text-xs font-semibold text-gray-400">/ {botLimit ?? '—'}</span></span>
             </div>
           </div>
           <div className="flex flex-col border-l border-gray-100 pl-4 md:pl-6">
@@ -102,7 +122,7 @@ const MyBots = () => {
             <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Offline</span>
             <div className="flex items-center gap-2.5">
               <ServerOff size={20} className="text-gray-400" strokeWidth={1.5} />
-              <span className="text-2xl font-extrabold text-darktext">{bots.length - activeCount}</span>
+              <span className="text-2xl font-extrabold text-darktext">{botsUsed - activeCount}</span>
             </div>
           </div>
           <div className="flex flex-col border-l border-gray-100 pl-4 md:pl-6">
@@ -131,15 +151,15 @@ const MyBots = () => {
         {/* List */}
         <div className="border-t border-gray-200">
           {loading ? (
-            <div className="py-16 flex justify-center">
-              <Loader2 size={24} className="animate-spin text-brand" />
-            </div>
+            <div className="py-16 flex justify-center"><Loader2 size={24} className="animate-spin text-brand" /></div>
           ) : filteredBots.length === 0 ? (
             <div className="py-12 text-center">
               <Layers size={24} strokeWidth={1.5} className="text-gray-300 mx-auto mb-3" />
               <p className="text-sm font-bold text-darktext mb-1">No bots yet</p>
               <p className="text-xs text-gray-500 mb-4">Deploy your first bot to get started.</p>
-              <Link to="/dashboard/deploy" className="text-xs font-bold text-brand hover:text-brand-dark">Deploy a bot →</Link>
+              {!botLimitReached && (
+                <Link to="/dashboard/deploy" className="text-xs font-bold text-brand hover:text-brand-dark">Deploy a bot</Link>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-gray-100">

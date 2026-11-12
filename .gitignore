@@ -113,3 +113,25 @@ temp/
 *.tmp
 *.bak
 *.orig
+
+# Env & secrets
+.env
+.env.local
+.env.production
+.env.*
+!.env.example
+
+# Warren-XMD bot engine (separate repo path)
+Warren-XMD/node_modules
+Warren-XMD/.env
+Warren-XMD/data/sessions
+Warren-XMD/data/database.json
+
+# Bot engine
+bot-engine/logs/
+bot-engine/sessions/
+bot-engine/node_modules/
+bot-engine/.env
+
+# Vercel
+.vercel
