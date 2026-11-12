@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'https://bot-hosting-website-nn99.onrender.com';
+const API_URL = 'https://bot-hosting-website-nn99.onrender.com';
 
 function getToken() {
   return localStorage.getItem('warrenxmd_auth_token');
