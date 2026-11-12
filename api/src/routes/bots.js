@@ -13,6 +13,7 @@ function requireAuth(req, res, next) {
   } catch { res.status(401).json({ error: 'Invalid token.' }); }
 }
 
+// GET /api/bots
 router.get('/', requireAuth, async (req, res) => {
   try {
     const result = await pool.query(
@@ -27,6 +28,7 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/bots
 router.post('/', requireAuth, async (req, res) => {
   const { name, phone } = req.body;
   if (!name || !phone) return res.status(400).json({ error: 'Name and phone are required.' });
@@ -35,9 +37,17 @@ router.post('/', requireAuth, async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Check balance
+    // 1. Lock the user row to prevent concurrent deploys racing
+    //    (we use the ledger sum, not the materialized view)
+    await client.query(
+      'SELECT id FROM users WHERE id = $1 FOR UPDATE',
+      [req.user.id]
+    );
+
+    // 2. Read the balance from the ledger (source of truth)
     const balResult = await client.query(
-      'SELECT COALESCE(balance, 0) AS balance FROM user_token_balances WHERE user_id = $1',
+      `SELECT COALESCE(SUM(amount), 0)::BIGINT AS balance
+       FROM token_ledger WHERE user_id = $1`,
       [req.user.id]
     );
     const balance = Number(balResult.rows[0]?.balance || 0);
@@ -46,7 +56,7 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(402).json({ error: 'Insufficient tokens. Need at least 100 to deploy.' });
     }
 
-    // Insert bot
+    // 3. Insert the bot
     const botResult = await client.query(
       `INSERT INTO bots (user_id, name, phone, status)
        VALUES ($1, $2, $3, 'deploying')
@@ -55,7 +65,7 @@ router.post('/', requireAuth, async (req, res) => {
     );
     const bot = botResult.rows[0];
 
-    // Deduct tokens
+    // 4. Deduct tokens
     await client.query(
       `INSERT INTO token_ledger (user_id, amount, kind, bot_id, metadata)
        VALUES ($1, -100, 'bot_deploy_fee', $2, $3)`,
@@ -64,8 +74,12 @@ router.post('/', requireAuth, async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Refresh view sequentially (not in a transaction, but on same client)
-    await client.query('REFRESH MATERIALIZED VIEW CONCURRENTLY user_token_balances');
+    // 5. Refresh view AFTER commit (best effort — never breaks the response)
+    try {
+      await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY user_token_balances');
+    } catch (refreshErr) {
+      console.warn('⚠️ Could not refresh balance view:', refreshErr.message);
+    }
 
     res.status(201).json({ bot });
   } catch (err) {
@@ -77,6 +91,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+// PATCH /api/bots/:id/status
 router.patch('/:id/status', requireAuth, async (req, res) => {
   const { status } = req.body;
   if (!['online', 'offline'].includes(status)) {
@@ -97,6 +112,7 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
   }
 });
 
+// DELETE /api/bots/:id
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const result = await pool.query(
