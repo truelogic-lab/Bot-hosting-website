@@ -20,17 +20,17 @@ const DeployBot = () => {
   const [isCopied, setIsCopied] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
 
-  useEffect(() => {
-    api.getDashboard().then(setDashboardData).catch(() => {});
-  }, []);
-
   // Poll for pairing code once bot is deployed
   useEffect(() => {
     if (!pendingBot) return;
     let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 15; // 15 * 2s = 30 seconds max wait
 
     const interval = setInterval(async () => {
       if (cancelled) return;
+      attempts++;
+
       try {
         const { bots } = await api.getBots();
         const current = bots.find(b => b.id === pendingBot.id);
@@ -39,15 +39,28 @@ const DeployBot = () => {
         if (current.pairingCode) {
           setPairingCode(current.pairingCode);
           setIsLoading(false);
+          clearInterval(interval); // Stop polling, we have the code!
         }
+        
         if (current.status === 'online') {
           navigate('/dashboard/bots');
+          clearInterval(interval);
         }
+
         if (current.lastError) {
           setError(current.lastError);
           setPendingBot(null);
           setIsLoading(false);
+          clearInterval(interval);
         }
+
+        if (attempts >= MAX_ATTEMPTS) {
+          setError('Provisioning timed out. Your bot engine is likely offline. Check Render logs.');
+          setPendingBot(null);
+          setIsLoading(false);
+          clearInterval(interval);
+        }
+
       } catch (e) {
         console.error(e);
       }
@@ -82,7 +95,7 @@ const DeployBot = () => {
     try {
       const { bot } = await api.deployBot(botName, fullPhone);
       setPendingBot(bot);
-      // Keep loading — waiting for pairing code from your bot
+      // Keep loading true, wait for polling
     } catch (err) {
       setError(err.message);
       setIsLoading(false);
@@ -107,7 +120,7 @@ const DeployBot = () => {
 
         {error && (
           <div className="border-l-2 border-red-500 pl-4 py-1">
-            <p className="text-xs font-bold text-red-900">Deployment failed</p>
+            <p className="text-xs font-bold text-red-900">Deployment Error</p>
             <p className="text-[11px] text-red-800/80 mt-0.5">{error}</p>
             {error.includes('Insufficient') && (
               <Link to="/dashboard/buy" className="text-xs font-bold text-brand mt-2 inline-block">Top up tokens</Link>
