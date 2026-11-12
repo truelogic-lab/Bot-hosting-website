@@ -135,3 +135,4 @@ bot-engine/.env
 
 # Vercel
 .vercel
+bot-engine/
